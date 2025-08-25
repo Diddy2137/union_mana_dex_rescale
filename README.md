@@ -1,4 +1,4 @@
-# change the way how ranged weapons amd magic work
+# change the way how ranged weapons and magic work
 
 based on https://github.com/Gratt-5r2/UnionProject
 
