@@ -1,4 +1,4 @@
-﻿#define gouthic2 //gouthic1
+#define gouthic2 //gouthic1
 #include "plugin.h"
 #include "UnionAfx.h"
 #include <../UnionSDK/console/Console.h>
@@ -36,16 +36,18 @@ using namespace Gothic_II_Addon;
 #endif
 
 // override trough menu
-static float g_DexScale = 0.25f;
-static float g_ManaScale = 0.25f;
-static int spierdalaj = 0;
+static float g_DexScale = 2.0f;
+static float g_ManaScale = 2.0f;
+static bool spierdalaj = false;
+static bool ambush = false; //sneak mode for ranged
+static bool DontKill = false; //dont kill npcs
 
 static void LoadConfig() {
     if (!zoptions) return;
 
     static const float scaleSteps[] = {
-        0.00f,0.25f,0.50f,0.75f,
-        1.00f,1.25f,1.50f,1.75f,2.00f
+        2.00f,1.75f,1.50f,1.25f,
+        1.0f,0.75f,0.50f,0.25f,0.00f
     };
 
     int dexIdx = zoptions->ReadInt("DamageScaling", "DexScale", 1);
@@ -59,7 +61,9 @@ static void LoadConfig() {
     g_DexScale = scaleSteps[dexIdx];
     g_ManaScale = scaleSteps[manaIdx];
 
-    spierdalaj = zoptions->ReadInt("DamageScaling", "DebugOutput", 0);
+    spierdalaj = zoptions->ReadBool("DamageScaling", "DebugOutput", false);
+	ambush = zoptions->ReadBool("DamageScaling", "SneakAmbush", false);
+	DontKill = zoptions->ReadBool("DamageScaling", "DontKill", false);
 
     cmd << CMD_CYAN_INT << "[Union:Config] DexScale=" << g_DexScale
         << ", ManaScale=" << g_ManaScale << endl;
@@ -190,11 +194,40 @@ static void ApplyStatBonus(oCNpc* victim, oCNpc::oSDamageDescriptor& desc) {
             << " new=" << desc.aryDamage[maxIdx]
             << " (+ " << bonus << ")" << endl;
     }
+
+    auto funnelDamageTo = [&](int idxTarget) {
+        float total = desc.fDamageTotal;
+        for (int i = 0; i < oEDamageIndex_MAX; ++i) desc.aryDamage[i] = 0;
+        desc.aryDamage[idxTarget] = static_cast<unsigned long>(total);
+        desc.fDamageTotal = total;
+        };
+
+    const bool isRanged = (mode == NPC_WEAPON_BOW || mode == NPC_WEAPON_CBOW);
+    const bool isMelee = (mode == NPC_WEAPON_1HS || mode == NPC_WEAPON_2HS || mode == NPC_WEAPON_DAG);
+    const bool isMagic = (mode == NPC_WEAPON_MAG);
+	//sneak mode deal 2x damage when sneaking if npc can't see you
+    if (ambush && isRanged) {
+        const bool isSneaking = (hero->GetBodyState() == BS_SNEAK);
+        const bool targetSeesHero = victim && victim->CanSee(hero, 0) != 0;
+        if (isSneaking && !targetSeesHero) {
+            for (int i = 0; i < oEDamageIndex_MAX; ++i) desc.aryDamage[i] *= 2;
+            desc.fDamageTotal *= 2.0f;
+            desc.fDamageReal *= 2.0f;
+            desc.fDamageEffective *= 2.0f;
+        }
+    }
+	//don't kill npcs
+    if (DontKill) {
+#ifdef gouthic2
+        desc.bDamageDontKill = 1;
+#endif //g1 dont have this
+        funnelDamageTo(oEDamageIndex_Blunt);
+        desc.enuModeDamage = oEDamageType_Blunt;
+    }
+
+
+    
 }
-
-
-
-
 
 
 // -------------------------------------------------------
@@ -282,7 +315,9 @@ cexport void Game_ApplyOptions() {
     // Force re-read of options when menu changes are made
     if (zoptions) {
         g_DexScale = zoptions->ReadReal("DamageScaling", "DexScale", 0.25f);
-        g_ManaScale = zoptions->ReadReal("DamageScaling", "ManaScale", 0.20f);
-        spierdalaj = zoptions->ReadInt("DamageScaling", "DebugOutput", 0);
+        g_ManaScale = zoptions->ReadReal("DamageScaling", "ManaScale", 0.25f);
+        spierdalaj = zoptions->ReadInt("DamageScaling", "DebugOutput", false);
+		ambush = zoptions->ReadBool("DamageScaling", "SneakAmbush", false);
+		DontKill = zoptions->ReadBool("DamageScaling", "DontKill", false);
     }
 }
