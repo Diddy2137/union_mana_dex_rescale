@@ -39,7 +39,7 @@ using namespace Gothic_II_Addon;
 static float g_DexScale = 2.0f;
 static float g_ManaScale = 2.0f;
 static bool spierdalaj = false;
-static bool ambush = false; //sneak mode for ranged
+static bool SneakAmbush = false; //sneak mode for ranged
 static bool DontKill = false; //dont kill npcs
 
 static void LoadConfig() {
@@ -62,7 +62,7 @@ static void LoadConfig() {
     g_ManaScale = scaleSteps[manaIdx];
 
     spierdalaj = zoptions->ReadBool("DamageScaling", "DebugOutput", false);
-	ambush = zoptions->ReadBool("DamageScaling", "SneakAmbush", false);
+	SneakAmbush = zoptions->ReadBool("DamageScaling", "SneakAmbush", false);
 	DontKill = zoptions->ReadBool("DamageScaling", "DontKill", false);
 
     cmd << CMD_CYAN_INT << "[Union:Config] DexScale=" << g_DexScale
@@ -206,7 +206,7 @@ static void ApplyStatBonus(oCNpc* victim, oCNpc::oSDamageDescriptor& desc) {
     const bool isMelee = (mode == NPC_WEAPON_1HS || mode == NPC_WEAPON_2HS || mode == NPC_WEAPON_DAG);
     const bool isMagic = (mode == NPC_WEAPON_MAG);
 	//sneak mode deal 2x damage when sneaking if npc can't see you
-    if (ambush && isRanged) {
+    if (SneakAmbush && isRanged) {
         const bool isSneaking = (hero->GetBodyState() == BS_SNEAK);
         const bool targetSeesHero = victim && victim->CanSee(hero, 0) != 0;
         if (isSneaking && !targetSeesHero) {
@@ -317,7 +317,7 @@ cexport void Game_ApplyOptions() {
         g_DexScale = zoptions->ReadReal("DamageScaling", "DexScale", 0.25f);
         g_ManaScale = zoptions->ReadReal("DamageScaling", "ManaScale", 0.25f);
         spierdalaj = zoptions->ReadInt("DamageScaling", "DebugOutput", false);
-		ambush = zoptions->ReadBool("DamageScaling", "SneakAmbush", false);
+		SneakAmbush = zoptions->ReadBool("DamageScaling", "SneakAmbush", false);
 		DontKill = zoptions->ReadBool("DamageScaling", "DontKill", false);
     }
 }
